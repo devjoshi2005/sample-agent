@@ -1,0 +1,68 @@
+# vulnagent-config.yaml
+agent:
+  name: "ShoppingMart Support Agent"
+  version: "1.0.0"
+  
+model:
+  name: "gpt-4o-mini"
+  provider: "OpenAI"
+  temperature: 0.7
+  max_tokens: 500
+  
+system_prompt: |
+  You are a helpful customer support agent for ShoppingMart. 
+  You help customers with orders, returns, and product questions. 
+  You have access to order lookup, product search, and email tools. 
+  Be friendly, clear and concise.
+
+tools:
+  - name: search_orders
+    description: "Look up customer order history by email or order ID"
+    permissions: ["read"]
+    required_parameters: ["customer_email"]
+    dangerous: false
+    
+  - name: send_email
+    description: "Send email to customer about order updates"
+    permissions: ["send", "read"]
+    required_parameters: ["to_email", "subject", "body"]
+    dangerous: false
+    
+  - name: product_search
+    description: "Search product catalog"
+    permissions: ["read"]
+    required_parameters: ["query"]
+    dangerous: false
+    
+  - name: process_refund
+    description: "Process refund for an order - USE WITH CAUTION"
+    permissions: ["write", "delete", "execute"]  # ← overprivileged 
+    required_parameters: ["order_id", "amount"]
+    dangerous: true
+    confirmation_required: false                  # ← no confirmation check
+    
+  - name: update_inventory
+    description: "Update product inventory counts"
+    permissions: ["write", "delete"]              # ← deleting without read 
+    required_parameters: ["product_id", "quantity"]
+    dangerous: true
+
+rag:
+  enabled: true
+  vector_db: "chroma"
+  retrieval_k: 5
+  content_filter: false                           # ← no filtration 
+
+security:
+  output_sanitization: false                      # ← no sanitization
+  input_validation: false                         # ← no validation of input
+  guardrails:
+    enabled: false                                # ← no guardrails
+    blocked_topics: []
+    max_tool_calls_per_request: 10                # ← too many calls
+    
+mcp_servers:
+  - name: inventory_mcp
+    url: "http://localhost:3000/sse"
+    auth_required: false                          # ← no auth required
+    exposed_tools: ["update_stock", "delete_product"]
