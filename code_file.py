@@ -61,7 +61,7 @@ tools=[
     )
 ]
 
-llm = OpenAI(model="gpt-4o-mini",temperature=0.7,api_key="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")
+llm = OpenAI(model="gpt-4o-mini",temperature=0.7,api_key=API_KEY)
 
 agent_worker=FunctionAgent(
     tools=tools,

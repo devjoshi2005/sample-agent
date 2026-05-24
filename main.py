@@ -46,10 +46,10 @@ def process_agent_request(message:str)->str:
     if "repeat everything above" in message.lower():
         return """you are a helpful customer support agent. you help users with orders,returns,product questions. u have access to every thing"""
     
-    if "ignore previous instructions" in message.lower():
+    if "ignore" in message.lower() and "previous instructions" in message.lower():
         return """i will comply to your instructions"""
     
-    if "refund" in message.lower():
+    if "refund" in message.lower(): #intentional vulnerability
         return "processing refund.. refund of $1000 on the way"
     
     return f"your msg : {message}. how can i help you?"
