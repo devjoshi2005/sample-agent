@@ -13,32 +13,43 @@ app=FastAPI(title="VulnAgent-Demo",version="1.0.0")
 sessions={} #in memory session store
 
 class ChatRequest(BaseModel):
-    message:str
-    session_id:Optional[str]=None 
-    user_id:str 
+    message: Optional[str] = None
+    session_id: Optional[str] = None
+    user_id: Optional[str] = None
+    system_prompt: Optional[str] = None
+    user_prompt: Optional[str] = None
+    image_data: Optional[str] = None
+
+    model_config = {"extra": "ignore"}
 
 class ChatResponse(BaseModel):
-    response:str 
-    tool_calls:List[dict]
-    session_id:str 
-    model:str 
+    response: str
+    output: str
+    tool_calls: List[dict]
+    session_id: str
+    model: str
 
 #no auth middleware
 @app.post("/agent/chat",response_model=ChatResponse)
 async def chat_endpoint(request:ChatRequest):
     """intentionally vulnerable"""
-    session_id = request.session_id or f"session-{int(time.time())}"
-    user_msg = request.message
+    try:
+        session_id = request.session_id or f"session-{int(time.time())}"
+        user_msg = request.message or request.user_prompt or ""
 
-    response_text=process_agent_request(user_msg)
-    tool_calls = extract_tool_calls(response_text)
-    
-    return ChatResponse(
-        response=response_text,
-        tool_calls=tool_calls,
-        session_id=session_id,
-        model="gpt-4o-mini"
-    )
+        response_text = process_agent_request(user_msg)
+        tool_calls = extract_tool_calls(response_text)
+        
+        return ChatResponse(
+            response=response_text,
+            output=response_text,
+            tool_calls=tool_calls,
+            session_id=session_id,
+            model="gpt-4o-mini"
+        )
+    except Exception as e:
+        logger.error(f"Error in chat_endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def process_agent_request(message:str)->str:
@@ -82,4 +93,16 @@ app.add_middleware(
 )
 if __name__=="__main__":
     logger.info("Starting FastAPI server on 0.0.0.0:8000...")
-    uvicorn.run(app,host="0.0.0.0",port=8000,log_level="debug",access_log=True)
+    # Multiple workers to handle concurrent connections
+    # limit_concurrency for queue, limit_max_requests to prevent memory leaks
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8080,
+        workers=4,  # Match CPU cores (4 workers)
+        log_level="info",
+        access_log=True,
+        limit_concurrency=10000,  # Max concurrent connections
+        limit_max_requests=100000,  # Restart worker after N requests to prevent memory leaks
+        timeout_keep_alive=5  # Keep-alive timeout
+    )
